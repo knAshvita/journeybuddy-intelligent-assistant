@@ -1,0 +1,5 @@
+
+__pycache__/
+*.pyc
+fastapi-service/.venv/
+fastapi-service/__pycache__/
