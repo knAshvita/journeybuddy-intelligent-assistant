@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 
 interface AuthModalProps {
@@ -18,6 +18,39 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [adminPasscode, setAdminPasscode] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Helper to clear all input fields
+  const clearForm = () => {
+    setEmail("");
+    setPassword("");
+    setConfirmPass("");
+    setFullName("");
+    setAdminPasscode("");
+    setError("");
+  };
+
+  // Reset fields whenever the modal opens or closes
+  useEffect(() => {
+    if (!isOpen) {
+      clearForm();
+      setIsSignUp(false);
+    }
+  }, [isOpen]);
+
+  // Handle switching between Sign In and Sign Up cleanly
+  const toggleAuthMode = (signUpMode: boolean) => {
+    clearForm();
+    setIsSignUp(signUpMode);
+  };
+
+  // Handle switching roles cleanly
+  const handleRoleChange = (newRole: "traveler" | "admin") => {
+    clearForm();
+    setRole(newRole);
+    if (newRole === "admin") {
+      setIsSignUp(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -42,6 +75,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           await loginWithEmail(email, password);
         }
       }
+      clearForm();
       onClose();
     } catch (err: any) {
       setError(err.message?.replace("Firebase: ", "") || "Authentication failed.");
@@ -54,6 +88,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setError("");
     try {
       await loginWithGoogle();
+      clearForm();
       onClose();
     } catch (err: any) {
       setError(err.message?.replace("Firebase: ", "") || "Google sign-in failed.");
@@ -66,7 +101,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         {/* Close Button */}
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => {
+            clearForm();
+            onClose();
+          }}
           className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-bold"
         >
           ✕
@@ -74,7 +112,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
         {/* Header */}
         <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-          {role === "admin" ? "Admin Portal Access" : isSignUp ? "Create Traveler Account" : "Sign In to JourneyBuddy"}
+          {role === "admin"
+            ? "Admin Portal Access"
+            : isSignUp
+            ? "Create Traveler Account"
+            : "Sign In to JourneyBuddy"}
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
           {role === "admin"
@@ -88,10 +130,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         <div className="mt-4 flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
           <button
             type="button"
-            onClick={() => {
-              setRole("traveler");
-              setError("");
-            }}
+            onClick={() => handleRoleChange("traveler")}
             className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all ${
               role === "traveler"
                 ? "bg-white dark:bg-slate-900 text-red-600 dark:text-red-400 shadow-sm"
@@ -102,11 +141,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </button>
           <button
             type="button"
-            onClick={() => {
-              setRole("admin");
-              setIsSignUp(false);
-              setError("");
-            }}
+            onClick={() => handleRoleChange("admin")}
             className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all ${
               role === "admin"
                 ? "bg-white dark:bg-slate-900 text-red-600 dark:text-red-400 shadow-sm"
@@ -124,8 +159,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </div>
         )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+        {/* Form with auto-fill safety */}
+        <form onSubmit={handleSubmit} autoComplete="off" className="mt-4 space-y-3">
           {role === "traveler" && isSignUp && (
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
@@ -134,6 +169,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <input
                 type="text"
                 required
+                autoComplete="off"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Alex Morgan"
@@ -149,6 +185,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             <input
               type="email"
               required
+              autoComplete="off"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={role === "admin" ? "admin@journeybuddy.internal" : "alex@example.com"}
@@ -163,6 +200,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             <input
               type="password"
               required
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -178,6 +216,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <input
                 type="password"
                 required
+                autoComplete="new-password"
                 value={confirmPass}
                 onChange={(e) => setConfirmPass(e.target.value)}
                 placeholder="••••••••"
@@ -194,6 +233,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <input
                 type="password"
                 required
+                autoComplete="off"
                 value={adminPasscode}
                 onChange={(e) => setAdminPasscode(e.target.value)}
                 placeholder="Secret access passcode"
@@ -257,7 +297,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
               <button
                 type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
+                onClick={() => toggleAuthMode(!isSignUp)}
                 className="font-bold text-red-600 dark:text-red-400 hover:underline cursor-pointer"
               >
                 {isSignUp ? "Sign In" : "Sign Up"}

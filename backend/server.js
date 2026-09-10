@@ -4,6 +4,7 @@ require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const { verifyToken } = require("./middleware/authMiddleware");
 
 // Enable CORS and JSON parsing
 app.use(cors());
@@ -45,6 +46,18 @@ app.post("/api/query", (req, res) => {
     message: "Query accepted by gateway",
     stagedQuery: query,
     receivedAt: new Date().toISOString(),
+  });
+});
+
+// Protected Route: User Profile & Private Session Data
+app.get("/api/user/profile", verifyToken, (req, res) => {
+  res.status(200).json({
+    message: "Authorized secure access granted.",
+    user: {
+      uid: req.user.uid,
+      email: req.user.email,
+      role: req.user.email?.includes("admin") ? "admin" : "traveler",
+    },
   });
 });
 

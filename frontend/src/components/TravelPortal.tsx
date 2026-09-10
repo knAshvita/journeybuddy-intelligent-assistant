@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import BrandLogo from "./BrandLogo";
 import LandingHero from "./LandingHero";
@@ -8,6 +8,7 @@ import SearchBar from "./SearchBar";
 import StatusCard from "./StatusCard";
 import ThemeToggle from "./ThemeToggle";
 import AuthModal from "./AuthModal";
+import AdminPortal from "./AdminPortal";
 import { useAuth } from "@/context/AuthContext";
 
 interface TravelPortalProps {
@@ -34,9 +35,24 @@ const BENEFITS = [
 export default function TravelPortal({ buildTimestamp }: TravelPortalProps) {
   const [hasEntered, setHasEntered] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [viewAdminDashboard, setViewAdminDashboard] = useState(false);
   const { user, role, logout } = useAuth();
 
-  // If user hasn't pressed enter yet, render the landing page view
+  // AUTOMATIC REDIRECT: Once logged in as admin, go straight to Admin Portal
+  useEffect(() => {
+    if (role === "admin" && user) {
+      setViewAdminDashboard(true);
+    } else {
+      setViewAdminDashboard(false);
+    }
+  }, [role, user]);
+
+  // 1. Direct Render to Admin Portal when logged in as admin
+  if (role === "admin" && viewAdminDashboard) {
+    return <AdminPortal onExit={() => setViewAdminDashboard(false)} />;
+  }
+
+  // 2. Landing page check
   if (!hasEntered) {
     return <LandingHero onEnter={() => setHasEntered(true)} />;
   }
@@ -45,16 +61,11 @@ export default function TravelPortal({ buildTimestamp }: TravelPortalProps) {
     <div className="min-h-screen bg-[#FDFBF7] dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-200 flex flex-col font-sans">
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
 
-      {/* Top Navbar with Custom Brand Logo */}
+      {/* Top Navbar */}
       <header className="w-full bg-[#FDFBF7]/90 dark:bg-stone-950/90 backdrop-blur sticky top-0 z-40 border-b border-stone-200 dark:border-stone-800">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <BrandLogo />
-            {role === "admin" && (
-              <span className="text-[10px] uppercase tracking-wider font-mono font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800">
-                Admin
-              </span>
-            )}
           </div>
 
           <nav className="hidden md:flex items-center gap-8 text-sm text-stone-600 dark:text-stone-300 font-medium">
@@ -74,7 +85,7 @@ export default function TravelPortal({ buildTimestamp }: TravelPortalProps) {
                 <button
                   type="button"
                   onClick={() => logout()}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold border border-stone-300 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 transition text-stone-700 dark:text-stone-200"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold border border-stone-300 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 transition text-stone-700 dark:text-stone-200 cursor-pointer"
                 >
                   Logout
                 </button>
@@ -84,14 +95,14 @@ export default function TravelPortal({ buildTimestamp }: TravelPortalProps) {
                 <button
                   type="button"
                   onClick={() => setIsAuthOpen(true)}
-                  className="text-sm font-semibold text-stone-700 dark:text-stone-300 hover:text-stone-950 dark:hover:text-white px-2 py-1"
+                  className="text-sm font-semibold text-stone-700 dark:text-stone-300 hover:text-stone-950 dark:hover:text-white px-2 py-1 cursor-pointer"
                 >
                   Log in
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsAuthOpen(true)}
-                  className="px-5 py-2.5 rounded-lg text-xs font-bold bg-[#1B3B36] hover:bg-[#152e2a] text-white shadow-sm transition active:scale-95"
+                  className="px-5 py-2.5 rounded-lg text-xs font-bold bg-[#1B3B36] hover:bg-[#152e2a] text-white shadow-sm transition active:scale-95 cursor-pointer"
                 >
                   Sign Up
                 </button>
@@ -130,7 +141,7 @@ export default function TravelPortal({ buildTimestamp }: TravelPortalProps) {
               <button
                 type="button"
                 onClick={() => alert("Previewing video reel...")}
-                className="px-6 py-3 rounded-full text-xs font-bold bg-[#1B3B36]/80 backdrop-blur-sm text-white hover:bg-[#1B3B36] shadow-md transition flex items-center gap-2"
+                className="px-6 py-3 rounded-full text-xs font-bold bg-[#1B3B36]/80 backdrop-blur-sm text-white hover:bg-[#1B3B36] shadow-md transition flex items-center gap-2 cursor-pointer"
               >
                 <span>▶</span> Watch Video
               </button>
@@ -148,7 +159,7 @@ export default function TravelPortal({ buildTimestamp }: TravelPortalProps) {
           <h2 className="text-2xl sm:text-3xl font-serif font-bold text-stone-900 dark:text-white">
             Top Destinations
           </h2>
-          <button type="button" className="text-xs font-semibold text-stone-500 dark:text-stone-400 hover:underline">
+          <button type="button" className="text-xs font-semibold text-stone-500 dark:text-stone-400 hover:underline cursor-pointer">
             See All
           </button>
         </div>
@@ -203,7 +214,7 @@ export default function TravelPortal({ buildTimestamp }: TravelPortalProps) {
         </div>
       </section>
 
-      {/* Telemetry & Architecture Section */}
+      {/* Telemetry Architecture Section */}
       <section className="max-w-7xl mx-auto px-6 py-16 w-full">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <StatusCard />
@@ -270,7 +281,7 @@ export default function TravelPortal({ buildTimestamp }: TravelPortalProps) {
           <button
             type="button"
             onClick={() => setHasEntered(false)}
-            className="hover:underline text-stone-400"
+            className="hover:underline text-stone-400 cursor-pointer"
           >
             Back to Intro Landing
           </button>
