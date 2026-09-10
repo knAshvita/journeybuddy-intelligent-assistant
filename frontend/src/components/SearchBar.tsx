@@ -4,10 +4,31 @@ import { useState } from "react";
 
 export default function SearchBar() {
   const [query, setQuery] = useState("");
+  const [responseMsg, setResponseMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleDispatch = () => {
+  const handleDispatch = async () => {
     if (!query.trim()) return;
-    alert(`Query staged for backend dispatch: "${query}"`);
+    setLoading(true);
+    setResponseMsg("");
+
+    try {
+      const res = await fetch("http://localhost:5000/api/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResponseMsg(`Gateway Received: "${data.stagedQuery}" at ${new Date(data.receivedAt).toLocaleTimeString()}`);
+      } else {
+        setResponseMsg(`Error: ${data.error}`);
+      }
+    } catch {
+      setResponseMsg("Gateway offline. Make sure the backend on port 5000 is running.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -32,18 +53,15 @@ export default function SearchBar() {
           <button
             type="button"
             onClick={handleDispatch}
-            title="Dispatch Query"
-            className="px-6 py-3 rounded-xl bg-[#D84E55] hover:bg-[#C03E45] text-white font-bold text-sm shadow-md active:scale-95"
+            disabled={loading}
+            className="px-6 py-3 rounded-xl bg-[#D84E55] hover:bg-[#C03E45] text-white font-bold text-sm shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
           >
-            Search
+            {loading ? "Sending..." : "Search"}
           </button>
         </div>
-        {query && (
-          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-            Current state:{" "}
-            <span className="font-mono font-medium text-[#D84E55] dark:text-emerald-300">
-              {query}
-            </span>
+        {responseMsg && (
+          <p className="mt-2 text-xs font-mono font-medium text-[#D84E55] dark:text-emerald-300">
+            {responseMsg}
           </p>
         )}
       </div>
