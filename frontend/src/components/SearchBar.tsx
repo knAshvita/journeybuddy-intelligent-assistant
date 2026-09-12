@@ -1,136 +1,103 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 
 export default function SearchBar() {
-  const [destination, setDestination] = useState("");
-  const [date, setDate] = useState("");
-  const [guests, setGuests] = useState("2 Guests");
-  const [currency, setCurrency] = useState("USD");
-  const [responseMsg, setResponseMsg] = useState("");
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-
-  const dateInputRef = useRef<HTMLInputElement | null>(null);
-
-  // Trigger the native browser calendar popup reliably anywhere the box is clicked
-  const openDatePicker = () => {
-    if (dateInputRef.current) {
-      if ("showPicker" in HTMLInputElement.prototype) {
-        dateInputRef.current.showPicker();
-      } else {
-        dateInputRef.current.focus();
-      }
-    }
-  };
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleDispatch = async () => {
-    const tripTarget = destination.trim() || "Unspecified destination";
-    const travelDate = date || "flexible dates";
-    const query = `Trip to ${tripTarget} on ${travelDate} for ${guests} (Currency: ${currency})`;
-
+    if (!query.trim()) return;
     setLoading(true);
-    setResponseMsg("");
+    setErrorMsg("");
+    setResults([]);
 
     try {
-      const res = await fetch("http://localhost:5000/api/query", {
+      const res = await fetch("http://localhost:5000/api/destinations/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query }),
       });
       const data = await res.json();
-      if (res.ok) {
-        setResponseMsg(`Gateway Received: "${data.stagedQuery}" at ${new Date(data.receivedAt).toLocaleTimeString()}`);
+
+      if (res.ok && data.results) {
+        setResults(data.results);
       } else {
-        setResponseMsg(`Error: ${data.error || "Request failed"}`);
+        setErrorMsg(data.error || "Failed to retrieve results");
       }
     } catch {
-      setResponseMsg("Express Gateway (port 5000) offline. Query staged locally.");
+      setErrorMsg("Backend gateway is offline. Make sure port 5000 is running.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="relative w-full max-w-5xl mx-auto -mt-10 z-30 px-4">
-      <div className="bg-[#183630]/95 backdrop-blur-md rounded-2xl sm:rounded-full p-2 sm:p-2.5 shadow-2xl border border-[#2B4D46] text-white flex flex-col sm:flex-row items-stretch sm:items-center gap-1 sm:gap-2">
-        
-        {/* 1. Destination Field */}
-        <div className="flex-[1.5] px-4 py-2.5 flex items-center gap-2.5 border-b sm:border-b-0 sm:border-r border-[#2B4D46]">
-          <span className="text-base select-none">📍</span>
+    <div className="relative w-full max-w-4xl mx-auto -mt-12 z-20 px-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/80 dark:border-slate-800 p-4">
+        <label
+          htmlFor="search-input"
+          className="block text-xs uppercase tracking-wider font-semibold mb-2 text-[#1B3B36] dark:text-emerald-400"
+        >
+          Dynamic AI Vector Search (MongoDB Atlas)
+        </label>
+        <div className="flex gap-2">
           <input
+            id="search-input"
             type="text"
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleDispatch()}
-            placeholder="Destination (e.g. Bali, Maldives)"
-            className="w-full bg-transparent text-xs sm:text-sm font-medium placeholder-stone-400 text-white focus:outline-none"
+            placeholder="Try searching 'snowy mountain chalet' or 'tropical beach'..."
+            className="flex-1 rounded-xl px-5 py-3 text-sm border focus:outline-none focus:ring-2 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border-slate-200 dark:border-slate-700 focus:ring-[#1B3B36]"
           />
-        </div>
-
-        {/* 2. Interactive Date Picker Field */}
-        <div
-          onClick={openDatePicker}
-          className="flex-1 px-4 py-2.5 flex items-center gap-2 border-b sm:border-b-0 sm:border-r border-[#2B4D46] cursor-pointer hover:bg-white/5 transition rounded-xl sm:rounded-none"
-        >
-          <span className="text-base select-none">📅</span>
-          <input
-            ref={dateInputRef}
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full bg-transparent text-xs sm:text-sm font-medium text-white focus:outline-none cursor-pointer [color-scheme:dark]"
-          />
-        </div>
-
-        {/* 3. Guests Selector */}
-        <div className="px-4 py-2.5 flex items-center gap-2 border-b sm:border-b-0 sm:border-r border-[#2B4D46]">
-          <span className="text-base select-none">👥</span>
-          <select
-            value={guests}
-            onChange={(e) => setGuests(e.target.value)}
-            className="bg-transparent text-xs sm:text-sm font-medium text-white focus:outline-none cursor-pointer pr-1"
+          <button
+            type="button"
+            onClick={handleDispatch}
+            disabled={loading}
+            className="px-6 py-3 rounded-xl bg-[#1B3B36] hover:bg-[#152e2a] text-white font-bold text-sm shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
           >
-            <option value="1 Guest" className="bg-[#183630] text-white">1 Guest</option>
-            <option value="2 Guests" className="bg-[#183630] text-white">2 Guests</option>
-            <option value="3 Guests" className="bg-[#183630] text-white">3 Guests</option>
-            <option value="4+ Guests" className="bg-[#183630] text-white">4+ Guests</option>
-          </select>
+            {loading ? "Searching..." : "Search"}
+          </button>
         </div>
 
-        {/* 4. Currency Selector */}
-        <div className="px-3 py-2.5 flex items-center gap-1">
-          <select
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-            className="bg-transparent text-xs sm:text-sm font-medium text-white focus:outline-none cursor-pointer"
-          >
-            <option value="USD" className="bg-[#183630] text-white">USD</option>
-            <option value="EUR" className="bg-[#183630] text-white">EUR</option>
-            <option value="INR" className="bg-[#183630] text-white">INR</option>
-            <option value="GBP" className="bg-[#183630] text-white">GBP</option>
-          </select>
-        </div>
+        {errorMsg && (
+          <p className="mt-3 text-xs font-mono text-red-500">{errorMsg}</p>
+        )}
 
-        {/* 5. Search Button */}
-        <button
-          type="button"
-          onClick={handleDispatch}
-          disabled={loading}
-          className="px-6 py-3 rounded-full bg-[#245247] hover:bg-[#2e6357] border border-emerald-500/30 text-white text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-95 disabled:opacity-50 select-none"
-        >
-          <span>🔍</span>
-          <span>{loading ? "Searching..." : "Search"}</span>
-        </button>
+        {results.length > 0 && (
+          <div className="mt-4 space-y-2.5">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-slate-500 block">
+              Retrieved from MongoDB Atlas ($vectorSearch):
+            </span>
+            {results.map((item, idx) => (
+              <div
+                key={idx}
+                className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between gap-4"
+              >
+                <div>
+                  <h4 className="text-sm font-bold text-stone-900 dark:text-white">
+                    {item.title}
+                  </h4>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                    {item.description}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block">
+                    Match: {Math.round(item.score * 100)}%
+                  </span>
+                  <span className="text-[11px] font-mono text-stone-400">
+                    ${item.price_usd}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-
-      {/* Response Feedback Capsule */}
-      {responseMsg && (
-        <div className="mt-3 text-center">
-          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-mono bg-white/90 dark:bg-slate-900/90 border border-stone-200 dark:border-slate-800 text-[#183630] dark:text-emerald-300 shadow">
-            {responseMsg}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
