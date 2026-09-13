@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import TravelPortal from "@/components/TravelPortal";
 import { AuthProvider } from "@/context/AuthContext";
 

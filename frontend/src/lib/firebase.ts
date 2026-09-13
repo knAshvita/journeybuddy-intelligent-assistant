@@ -2,16 +2,17 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyCFPiXD85Gy4PkrJ4QrCwmCfVmBhMyztSE",
+  authDomain: "journeybuddy-app.firebaseapp.com",
+  projectId: "journeybuddy-app",
+  storageBucket: "journeybuddy-app.firebasestorage.app",
+  messagingSenderId: "394460372790",
+  appId: "1:394460372790:web:2c940837acbd1bb0815d97",
 };
 
+// Initialize Firebase App
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
-const googleProvider = new GoogleAuthProvider();
 
-export { app, auth, googleProvider };
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
+export default app;
