@@ -13,10 +13,12 @@
   "type": "commonjs",
   "dependencies": {
     "@pinecone-database/pinecone": "^9.0.0",
+    "@upstash/redis": "^1.38.4",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "firebase-admin": "^14.4.0",
+    "ioredis": "^6.0.0",
     "mongodb": "^7.6.0"
   },
   "devDependencies": {
