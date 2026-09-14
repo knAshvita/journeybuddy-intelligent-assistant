@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import BrandLogo from "./BrandLogo";
 
@@ -46,11 +46,42 @@ const FEATURED_EXPEDITIONS = [
   },
 ];
 
+// Duplicate items 3 times for a seamless wrapping buffer
+const INFINITE_EXPEDITIONS = [
+  ...FEATURED_EXPEDITIONS,
+  ...FEATURED_EXPEDITIONS,
+  ...FEATURED_EXPEDITIONS,
+];
+
 export default function LandingHero({ onEnter }: LandingHeroProps) {
   const sliderRef = useRef<HTMLDivElement | null>(null);
   const [isDown, setIsDown] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
+
+  // Initialize scroll position in the middle sequence on load
+  useEffect(() => {
+    if (sliderRef.current) {
+      const singleSetWidth = sliderRef.current.scrollWidth / 3;
+      sliderRef.current.scrollLeft = singleSetWidth;
+    }
+  }, []);
+
+  // Check and wrap scroll position seamlessly
+  const handleScroll = () => {
+    if (!sliderRef.current) return;
+    const { scrollLeft, scrollWidth } = sliderRef.current;
+    const singleSetWidth = scrollWidth / 3;
+
+    // If dragged near the very end, jump back 1 set without visual hitch
+    if (scrollLeft >= singleSetWidth * 2) {
+      sliderRef.current.scrollLeft -= singleSetWidth;
+    }
+    // If dragged near the start, jump forward 1 set
+    else if (scrollLeft <= 5) {
+      sliderRef.current.scrollLeft += singleSetWidth;
+    }
+  };
 
   // Mouse Drag-To-Slide Handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -72,7 +103,7 @@ export default function LandingHero({ onEnter }: LandingHeroProps) {
     if (!isDown || !sliderRef.current) return;
     e.preventDefault();
     const x = e.pageX - sliderRef.current.offsetLeft;
-    const walk = (x - startX) * 1.5; // Drag speed multiplier
+    const walk = (x - startX) * 1.5;
     sliderRef.current.scrollLeft = scrollLeft - walk;
   };
 
@@ -86,43 +117,41 @@ export default function LandingHero({ onEnter }: LandingHeroProps) {
       {/* Main Agency Header & CTA Area */}
       <div className="relative z-10 flex flex-col items-center text-center px-4 pt-10 sm:pt-14 max-w-4xl mx-auto space-y-6">
         
-        {/* Adjusted Logo Capsule */}
+        {/* Intact Brand Logo Capsule */}
         <div className="inline-flex items-center justify-center px-6 py-2.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md shadow-xl transition-transform hover:scale-105">
           <BrandLogo />
         </div>
 
-        {/* Agency Tagline */}
+        {/* Travel Messaging */}
         <div className="space-y-3.5 max-w-2xl">
           <span className="inline-block text-[11px] sm:text-xs uppercase tracking-[0.25em] text-amber-400 font-bold bg-amber-400/10 px-4 py-1.5 rounded-full border border-amber-400/20">
-            Bespoke Wilderness &amp; Luxury Escapes
+            YOUR JOURNEY, YOUR WAY
           </span>
           <h1 className="text-4xl sm:text-6xl font-serif font-bold text-stone-100 tracking-tight leading-[1.15]">
-            Adventure Awaits in <br /> Nature&apos;s Wonders
+            Your Next Adventure Starts Here
           </h1>
           <p className="text-xs sm:text-sm text-stone-300 max-w-lg mx-auto leading-relaxed">
-            Explore the wild with our guided safaris and immersive tours. Experience breathtaking landscapes, encounter wildlife, and create unforgettable memories.
+            Your intelligent travel companion for discovering destinations, building personalized journeys, and traveling with confidence.
           </p>
         </div>
 
-        {/* Call to Action Button */}
+        {/* Primary Action Button */}
         <div className="pt-1">
           <button
             type="button"
             onClick={onEnter}
             className="px-8 py-3.5 rounded-full bg-gradient-to-r from-[#FF9209] to-[#8B5CF6] text-white font-bold text-xs sm:text-sm tracking-wide shadow-lg shadow-orange-500/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center gap-2.5 mx-auto"
           >
-            <span>Explore Destinations</span>
-            <span className="text-base">→</span>
+            <span>Begin Exploring →</span>
           </button>
         </div>
       </div>
 
-      {/* Smooth Mouse-Slide Carousel Showcase */}
+      {/* Seamless Continuous Destination Showcase */}
       <div className="relative w-full z-10 pt-4 pb-8 overflow-hidden">
-        
-        {/* Drag-To-Scroll Interactive Track */}
         <div
           ref={sliderRef}
+          onScroll={handleScroll}
           onMouseDown={handleMouseDown}
           onMouseLeave={handleMouseLeave}
           onMouseUp={handleMouseUp}
@@ -131,11 +160,11 @@ export default function LandingHero({ onEnter }: LandingHeroProps) {
             isDown ? "cursor-grabbing" : "cursor-grab"
           }`}
           style={{
-            scrollbarWidth: "none", // Firefox
-            msOverflowStyle: "none", // IE/Edge
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
           }}
         >
-          {FEATURED_EXPEDITIONS.map((exp, idx) => (
+          {INFINITE_EXPEDITIONS.map((exp, idx) => (
             <div
               key={idx}
               onClick={onEnter}
@@ -163,7 +192,6 @@ export default function LandingHero({ onEnter }: LandingHeroProps) {
           ))}
         </div>
 
-        {/* Subtle Agency Subtitle with drag helper hint */}
         <div className="text-center pt-2 text-[11px] text-stone-400 font-mono tracking-wider flex items-center justify-center gap-2">
           <span>‹ Drag sideways to explore destinations ›</span>
         </div>

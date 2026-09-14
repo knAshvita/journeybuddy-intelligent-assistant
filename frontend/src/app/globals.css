@@ -43,3 +43,37 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* 3D Moving Water & Wave Animation */
+@keyframes oceanWaves {
+  0% {
+    transform: scale(1.04) translate(0px, 0px);
+  }
+  50% {
+    transform: scale(1.12) translate(-10px, -8px);
+  }
+  100% {
+    transform: scale(1.04) translate(0px, 0px);
+  }
+}
+
+@keyframes waterGlimmer {
+  0%, 100% {
+    opacity: 0.15;
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: translateY(-6px) scaleY(1.05);
+  }
+}
+
+.animate-ocean-waves {
+  animation: oceanWaves 14s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-water-glimmer {
+  animation: waterGlimmer 7s ease-in-out infinite;
+  will-change: opacity, transform;
+}

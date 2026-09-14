@@ -264,7 +264,115 @@ app.post("/api/agent/plan", async (req, res) => {
   }
 });
 
+// --- USER ACTIVITY & TELEMETRY AUDIT API ---
+app.post("/api/admin/log-activity", async (req, res) => {
+  try {
+    const { email, query, type, durationSeconds, chatSnippet, destination } = req.body;
+    if (!email) return res.status(400).json({ error: "User email required" });
 
+    if (!dbClient) return res.status(500).json({ error: "Database not connected" });
+    const db = dbClient.db("journeybuddy");
+
+    const activityDoc = {
+      email,
+      query: query || "",
+      type: type || "search",
+      durationSeconds: durationSeconds || 120,
+      chatSnippet: chatSnippet || [],
+      destination: destination || "General",
+      timestamp: new Date(),
+    };
+
+    await db.collection("user_activities").insertOne(activityDoc);
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error("❌ Log activity error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/admin/activities", async (req, res) => {
+  try {
+    if (!dbClient) return res.status(500).json({ error: "Database not connected" });
+    const db = dbClient.db("journeybuddy");
+
+    const logs = await db
+      .collection("user_activities")
+      .find({})
+      .sort({ timestamp: -1 })
+      .limit(20)
+      .toArray();
+
+    const storedPlaces = await db
+      .collection("destinations")
+      .find({}, { projection: { title: 1, category: 1, price_usd: 1, source: 1 } })
+      .limit(30)
+      .toArray();
+
+    return res.status(200).json({ success: true, logs, storedPlaces });
+  } catch (err) {
+    console.error("❌ Fetch activities error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- FEEDBACK & CUSTOMER QUERY SOLVER API ---
+app.post("/api/feedback/submit", async (req, res) => {
+  try {
+    const { name, email, rating, feedback, destination, queryType } = req.body;
+    if (!name || !email || !feedback) {
+      return res.status(400).json({ error: "Name, email, and feedback message are required." });
+    }
+
+    const queryDoc = {
+      id: `QRY-${Math.floor(1000 + Math.random() * 9000)}`,
+      name: name.trim(),
+      email: email.trim(),
+      rating: Number(rating) || 5,
+      feedback: feedback.trim(),
+      destination: destination || "General Inquiry",
+      queryType: queryType || "Feedback",
+      status: "Pending Solver",
+      submittedAt: new Date(),
+    };
+
+    if (dbClient) {
+      const db = dbClient.db("journeybuddy");
+      await db.collection("customer_queries").insertOne(queryDoc);
+    }
+
+    return res.status(200).json({ success: true, message: "Feedback submitted successfully!", query: queryDoc });
+  } catch (err) {
+    console.error("❌ Submit feedback error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/feedback/all", async (req, res) => {
+  try {
+    if (!dbClient) return res.status(500).json({ error: "Database not connected" });
+    const db = dbClient.db("journeybuddy");
+    const queries = await db.collection("customer_queries").find({}).sort({ submittedAt: -1 }).toArray();
+    return res.status(200).json({ success: true, queries });
+  } catch (err) {
+    console.error("❌ Get queries error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch("/api/feedback/resolve/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (dbClient) {
+      const db = dbClient.db("journeybuddy");
+      await db.collection("customer_queries").updateOne({ id }, { $set: { status: status || "Resolved" } });
+    }
+    return res.status(200).json({ success: true, status: status || "Resolved" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // app.listen must always remain at the very end of the file
 app.listen(PORT, () => {

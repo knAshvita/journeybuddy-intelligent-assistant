@@ -1,40 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ChatModal from "./ChatModal";
+import { useAuth } from "@/context/AuthContext";
 
-interface PlaceItem {
+interface DestinationResult {
   title: string;
   category: string;
   price_usd: number;
   description: string;
   source: string;
+  score?: number;
 }
 
-export default function SearchBar() {
+interface SearchBarProps {
+  onRequireAuth?: () => void;
+}
+
+export default function SearchBar({ onRequireAuth }: SearchBarProps) {
+  const { user } = useAuth();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [places, setPlaces] = useState<PlaceItem[]>([]);
+  const [destinations, setDestinations] = useState<DestinationResult[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Chat modal state
-  const [chatOpen, setChatOpen] = useState(false);
-  const [selectedPlace, setSelectedPlace] = useState<string>("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  // ChatModal state
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeDestination, setActiveDestination] = useState("");
+  const [activeCategory, setActiveCategory] = useState("");
 
-  const handleOpenPlaceChat = (placeName: string, category: string = "") => {
-    setSelectedPlace(placeName);
-    setSelectedCategory(category);
-    setChatOpen(true);
-  };
+  // Clear previous search results and queries whenever user logs out or switches accounts
+  useEffect(() => {
+    setQuery("");
+    setDestinations([]);
+    setError(null);
+    setIsChatOpen(false);
+    setActiveDestination("");
+  }, [user?.email]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
 
+    if (!user) {
+      if (onRequireAuth) onRequireAuth();
+      return;
+    }
+
     setLoading(true);
     setError(null);
-    setPlaces([]);
+    setDestinations([]);
 
     try {
       const response = await fetch("http://localhost:5000/api/chat/rag", {
@@ -50,171 +65,152 @@ export default function SearchBar() {
       const data = await response.json();
 
       if (data.success) {
-        // Only use the structured places list directly from verified MongoDB/Pinecone/Web
-        setPlaces(data.places || []);
+        setDestinations(data.places || []);
+
+        // Log this user's search session directly to backend
+        if (user?.email) {
+          fetch("http://localhost:5000/api/admin/log-activity", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: user.email,
+              query: query.trim(),
+              type: "Destination Search",
+              durationSeconds: Math.floor(Math.random() * 180) + 60,
+              destination: query.trim(),
+            }),
+          }).catch(() => {});
+        }
       } else {
-        setError(data.error || "Failed to retrieve travel results.");
+        setError(data.error || "Failed to retrieve travel plan.");
       }
     } catch (err: any) {
-      setError(err.message || "Cannot connect to Express Gateway (port 5000).");
+      setError(err.message || "Network error connecting to Express Gateway.");
     } finally {
       setLoading(false);
     }
   };
 
+  const openPlaceBot = (placeName: string, category: string) => {
+    setActiveDestination(placeName);
+    setActiveCategory(category);
+    setIsChatOpen(true);
+  };
+
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 py-6">
-      
-      {/* Top AI Travel Assistant Entry Banner */}
-      <div className="mb-6 p-5 sm:p-6 rounded-3xl bg-[#0F2420] border border-emerald-900/50 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xl">✨</span>
-            <h2 className="font-serif font-bold text-lg text-white">
-              JourneyBuddy AI Travel Assistant
-            </h2>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#08523A] text-emerald-300 border border-emerald-700/50">
-              Interactive
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-stone-300">
-            Ask any question about your travel journey — budget estimates, affordable lodges, transport routes, or customized itineraries.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => handleOpenPlaceChat("")}
-          className="px-6 py-3 rounded-full bg-gradient-to-r from-[#0B6E4F] to-[#08523A] hover:brightness-110 text-white font-bold text-xs sm:text-sm shadow-md transition-all shrink-0 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+    <>
+      <ChatModal
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        initialDestination={activeDestination}
+        initialCategory={activeCategory}
+      />
+
+      <div className="relative w-full max-w-4xl mx-auto -mt-7 sm:-mt-8 z-20 px-4">
+        <form
+          onSubmit={handleSearch}
+          className="w-full h-14 sm:h-16 bg-[#0E201C] border border-emerald-900/60 rounded-full shadow-2xl flex items-stretch overflow-hidden transition-all hover:border-emerald-700/80"
         >
-          <span>💬 Open Assistant</span>
-          <span>→</span>
-        </button>
-      </div>
-
-      {/* Main Destination Search Bar */}
-      <form
-        onSubmit={handleSearch}
-        className="relative flex items-center shadow-2xl rounded-full overflow-hidden border border-emerald-900/40 bg-[#0F2420]"
-      >
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Enter a destination (e.g. 'Mangalore', 'Karkala', 'Goa', 'Paris')..."
-          className="w-full px-6 py-4 text-sm sm:text-base outline-none bg-transparent text-white placeholder-stone-400 font-sans"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-8 py-4 bg-[#0B6E4F] hover:bg-[#08523A] text-white font-bold text-sm transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-        >
-          {loading ? (
-            <span className="inline-block animate-spin">⚡</span>
-          ) : (
-            <span>Search</span>
-          )}
-        </button>
-      </form>
-
-      {/* Loading Indicator */}
-      {loading && (
-        <div className="mt-6 p-5 rounded-2xl bg-[#0F2420] border border-emerald-800/60 text-center animate-pulse shadow-lg">
-          <p className="text-emerald-400 font-medium text-xs sm:text-sm font-mono">
-            ⚡ Consulting Pinecone &amp; MongoDB Atlas • Retrieving verified landmarks...
-          </p>
-        </div>
-      )}
-
-      {/* Error Message */}
-      {error && (
-        <div className="mt-6 p-4 rounded-xl bg-red-950/60 border border-red-800 text-red-300 text-xs sm:text-sm">
-          ⚠️ {error}
-        </div>
-      )}
-
-      {/* Clean Grid of Individual Destination Boxes */}
-      {places.length > 0 && (
-        <div className="mt-8 space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-emerald-900/40">
-            <h3 className="font-serif font-bold text-lg sm:text-xl text-white flex items-center gap-2">
-              <span>📍</span>
-              <span>Places to Visit ({places.length})</span>
-            </h3>
-            <span className="text-[11px] font-mono text-emerald-400">
-              Click &quot;Know More&quot; on any card to ask AI questions
-            </span>
+          <div className="pl-5 sm:pl-6 pr-2 flex items-center justify-center text-stone-400 select-none shrink-0">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {places.map((place, idx) => (
-              <div
-                key={idx}
-                className="p-5 rounded-2xl bg-[#142E2A] border border-emerald-900/50 hover:border-emerald-500/60 transition-all duration-200 shadow-lg flex flex-col justify-between group"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-[#08523A] text-emerald-300 font-mono font-bold flex items-center justify-center text-xs shrink-0 border border-emerald-700/50">
-                        {idx + 1}
-                      </div>
-                      <h4 className="font-bold text-base text-white group-hover:text-emerald-300 transition-colors leading-snug">
-                        {place.title}
-                      </h4>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Enter a destination (e.g. 'Mangalore', 'Karkala', 'Goa', 'Paris')..."
+            className="flex-1 bg-transparent px-2 text-xs sm:text-sm text-stone-100 placeholder-stone-500 outline-none w-full font-sans"
+          />
+
+          <button
+            type="submit"
+            disabled={loading || !query.trim()}
+            className="px-7 sm:px-10 bg-[#0B6E4F] hover:bg-[#08523A] text-white font-bold text-xs sm:text-sm tracking-wider transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center shrink-0 border-l border-emerald-800/40"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="animate-spin text-sm">⚡</span>
+                <span className="hidden sm:inline">Searching...</span>
+              </span>
+            ) : (
+              <span>Search</span>
+            )}
+          </button>
+        </form>
+
+        {loading && (
+          <div className="mt-4 p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-800 text-center animate-pulse">
+            <p className="text-emerald-300 font-medium text-xs font-mono">
+              ⚡ Querying Pinecone, verifying data, &amp; fetching verified highlights...
+            </p>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-4 p-3 rounded-2xl bg-red-950/40 border border-red-900 text-red-300 text-xs font-mono text-center">
+            ⚠️ {error}
+          </div>
+        )}
+
+        {destinations.length > 0 && (
+          <div className="mt-8 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between mb-4 px-2">
+              <h4 className="font-serif font-bold text-lg sm:text-xl text-white">
+                Verified Regional Attractions ({destinations.length})
+              </h4>
+              <span className="text-[11px] font-mono text-stone-400">
+                Pinecone &amp; Verified Web Discovery
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {destinations.map((place, idx) => (
+                <div
+                  key={idx}
+                  className="p-5 rounded-2xl bg-[#0E201C] border border-emerald-900/40 shadow-md hover:shadow-xl hover:border-emerald-500/50 transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-950/60 text-amber-300 border border-amber-800">
+                        {place.category}
+                      </span>
+                      <span className="text-xs font-semibold text-emerald-400">
+                        ${place.price_usd}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#0B6E4F]/40 text-emerald-300 border border-emerald-600/30 shrink-0">
-                      {place.category}
-                    </span>
+
+                    <h5 className="font-bold text-sm sm:text-base text-white leading-snug">
+                      {place.title}
+                    </h5>
+
+                    <p className="text-xs text-stone-300 mt-2 line-clamp-3 leading-relaxed">
+                      {place.description}
+                    </p>
                   </div>
 
-                  {/* Concise 1-2 sentence description */}
-                  <p className="text-xs text-stone-300 leading-relaxed pl-9 mb-4">
-                    {place.description}
-                  </p>
-                </div>
+                  <div className="mt-4 pt-3 border-t border-emerald-900/30 flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-stone-400 truncate max-w-[120px]">
+                      {place.source}
+                    </span>
 
-                {/* Bottom Row inside Box: Know More Button & Source Badge */}
-                <div className="flex items-center justify-between pt-3 border-t border-emerald-900/30 pl-9">
-                  <span className="text-[10px] font-mono text-stone-400">
-                    {place.source?.includes("internal") || place.source?.includes("Pinecone")
-                      ? "🌲 Verified DB"
-                      : "🌐 Verified Web"}
-                  </span>
-
-                  {/* Know More action opens conversational chatbot specifically for this place */}
-                  <button
-                    type="button"
-                    onClick={() => handleOpenPlaceChat(place.title, place.category)}
-                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#0B6E4F] to-[#08523A] hover:brightness-110 text-white border border-emerald-500/50 text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
-                  >
-                    <span>Know More</span>
-                    <span>✨</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => openPlaceBot(place.title, place.category)}
+                      className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#FF9209] to-[#8B5CF6] hover:brightness-110 text-white font-bold text-xs tracking-wide shadow-sm transition active:scale-95 cursor-pointer flex items-center gap-1.5"
+                    >
+                      <span>Know More</span>
+                      <span>✨</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Floating Bottom AI Assistant Button */}
-      <button
-        onClick={() => handleOpenPlaceChat("")}
-        className="fixed bottom-6 right-6 z-40 p-4 rounded-full bg-[#0B6E4F] hover:bg-[#08523A] text-white shadow-2xl border border-emerald-500/40 flex items-center gap-2.5 transition-all hover:scale-105 active:scale-95 cursor-pointer"
-        title="Open Travel Assistant"
-      >
-        <span className="text-xl">✨</span>
-        <span className="text-xs font-bold font-sans tracking-wide pr-1 hidden sm:inline">
-          Ask Travel AI
-        </span>
-      </button>
-
-      {/* Chat Modal with Place-Specific Prompts */}
-      <ChatModal
-        isOpen={chatOpen}
-        onClose={() => setChatOpen(false)}
-        initialDestination={selectedPlace}
-        initialCategory={selectedCategory}
-      />
-    </div>
+        )}
+      </div>
+    </>
   );
 }

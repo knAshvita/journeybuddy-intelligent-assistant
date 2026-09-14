@@ -10,7 +10,7 @@ function transportTool(origin = "Regional Hub", destination = "Karkala", transpo
     ratePerPersonInr: baseRatePerPerson,
     estimatedTotalTransitInr: transitCost,
     bookingNotice: "Transit tickets require redirection to transport operators.",
-    bookingUrl: `https://www.redbus.in/bus-tickets/${encodeURIComponent(destination)}`,
+    bookingUrl: "https://www.redbus.in/bus-tickets",
   };
 }
 
