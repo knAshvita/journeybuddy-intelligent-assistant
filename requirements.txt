@@ -1,0 +1,44 @@
+# ==============================================================================
+# 🌍 JourneyBuddy — Master Ecosystem Dependencies Specification
+# ==============================================================================
+# This file specifies all runtime requirements across Python, Node.js,
+# and Next.js tiers for local execution, Docker builds, and GCP deployment.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. PYTHON FASTAPI MICROSERVICE (Port 8000)
+# Install via: pip install -r fastapi-service/requirements.txt
+# ------------------------------------------------------------------------------
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+python-dotenv>=1.0.1
+requests>=2.31.0
+
+# ------------------------------------------------------------------------------
+# 2. NODE.JS / EXPRESS API GATEWAY (Port 5000)
+# Install via: cd backend && npm install
+# Primary dependencies defined in backend/package.json:
+# ------------------------------------------------------------------------------
+# express@^4.19.2              # Core HTTP API server & middleware routing
+# cors@^2.8.5                  # Cross-Origin Resource Sharing handling
+# dotenv@^16.4.5               # Environment variable loading (.env)
+# mongodb@^6.5.0               # Official MongoDB driver & Atlas connection
+# @pinecone-database/pinecone@^2.2.0  # Serverless vector similarity client
+# @upstash/redis@^1.30.0       # HTTPS REST Redis client for rate limiting
+# firebase-admin@^12.0.0       # JWT verification & server identity validation
+# @langchain/core@^0.1.58      # Core LangChain abstractions & prompt schemas
+# @langchain/google-genai@^0.0.14  # Google Gemini LLM SDK integration
+
+# ------------------------------------------------------------------------------
+# 3. NEXT.JS / REACT FRONTEND APPLICATION (Port 3000)
+# Install via: cd frontend && npm install
+# Primary dependencies defined in frontend/package.json:
+# ------------------------------------------------------------------------------
+# next@15.x                    # Next.js App Router & server-rendered client shell
+# react@^19.0.0                # React UI library
+# react-dom@^19.0.0            # React DOM rendering engine
+# firebase@^10.9.0             # Client-side Firebase Authentication SDK
+# lucide-react@^0.359.0        # Vector icons for travel cards & navigation
+# tailwindcss@^3.4.1           # Utility-first CSS styling framework
+# typescript@^5.x              # Static type checking
