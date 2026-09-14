@@ -225,6 +225,7 @@ Redis
 
 # 📁 Project Directory Structure
 
+```text
 journey-buddy/
 │
 ├── .github/
@@ -310,6 +311,8 @@ journey-buddy/
 ├── docker-compose.yml
 └── README.md
 └── requirements.txt
+
+```
 
 # 🚀 Getting Started
 
