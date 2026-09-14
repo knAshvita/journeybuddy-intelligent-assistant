@@ -2,130 +2,221 @@
 
 import { useState } from "react";
 
-export interface DestinationResult {
+interface DestinationItem {
+  number: string;
+  name: string;
+  category: string;
+  overview: string;
+  provenance: string;
+}
+
+interface BackendPlace {
   title: string;
   category: string;
   price_usd: number;
   description: string;
+  source: string;
   score?: number;
-  source?: string;
 }
 
 export default function SearchBar() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<DestinationResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [sourceNote, setSourceNote] = useState("");
+  const [aiIntro, setAiIntro] = useState<string | null>(null);
+  const [parsedDestinations, setParsedDestinations] = useState<DestinationItem[]>([]);
+  const [rawPlaces, setRawPlaces] = useState<BackendPlace[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleDispatch = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  // Helper parser: converts Markdown text output from Gemini into structured objects
+  const parseGeminiResponse = (text: string) => {
+    const lines = text.split("\n");
+    let introText = "";
+    const items: DestinationItem[] = [];
+    let currentItem: Partial<DestinationItem> | null = null;
+
+    for (let rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("---")) continue;
+
+      // Matches numbered points: "1. **Panambur Beach**" or "### 1. Panambur Beach"
+      const numberMatch = line.match(/^(?:###\s*)?(\d+)\.\s*\*{0,2}(.*?)\*{0,2}$/);
+
+      if (numberMatch) {
+        if (currentItem && currentItem.name) {
+          items.push(currentItem as DestinationItem);
+        }
+        currentItem = {
+          number: numberMatch[1],
+          name: numberMatch[2].replace(/\*\*/g, "").trim(),
+          category: "Attraction",
+          overview: "",
+          provenance: "Verified Knowledge Base",
+        };
+      } else if (currentItem) {
+        if (line.includes("Category") || line.includes("Theme")) {
+          currentItem.category = line.split(":")[1]?.replace(/\*\*/g, "").trim() || "Attraction";
+        } else if (line.includes("Overview") || line.includes("Highlights")) {
+          currentItem.overview = line.split(":")[1]?.replace(/\*\*/g, "").trim() || "";
+        } else if (line.includes("Source") || line.includes("Provenance")) {
+          currentItem.provenance = line.split(":")[1]?.replace(/\*\*/g, "").trim() || "Internal";
+        } else if (!currentItem.overview) {
+          currentItem.overview = line.replace(/^-\s*/, "").replace(/\*\*/g, "").trim();
+        }
+      } else {
+        introText += line + " ";
+      }
+    }
+
+    if (currentItem && currentItem.name) {
+      items.push(currentItem as DestinationItem);
+    }
+
+    return { intro: introText.trim(), items };
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!query.trim()) return;
 
     setLoading(true);
-    setErrorMsg("");
-    setResults([]);
-    setSourceNote("");
+    setError(null);
+    setAiIntro(null);
+    setParsedDestinations([]);
+    setRawPlaces([]);
 
     try {
-      const res = await fetch("http://localhost:5000/api/destinations/search", {
+      const response = await fetch("http://localhost:5000/api/chat/rag", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: query.trim() }),
+        body: JSON.stringify({ query: query.trim(), targetCount: 10 }),
       });
 
-      const data = await res.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}`);
+      }
 
-      if (res.ok && data?.results) {
-        setResults(data.results);
-        if (data.source) {
-          setSourceNote(
-            data.source === "pinecone_internal_knowledge"
-              ? "🌲 Pinecone Vector DB (Internal Knowledge)"
-              : "🌐 Dynamic Live Retrieval (Saved to Pinecone & MongoDB)"
-          );
-        }
+      const data = await response.json();
+
+      if (data.success && data.answer) {
+        const { intro, items } = parseGeminiResponse(data.answer);
+        setAiIntro(intro);
+        setParsedDestinations(items);
+        setRawPlaces(data.places || []);
       } else {
-        setErrorMsg(data?.error || `Search failed with status ${res.status}`);
+        setError(data.error || "Failed to retrieve travel itinerary.");
       }
     } catch (err: any) {
-      console.error("Search fetch error:", err);
-      setErrorMsg("Backend gateway is offline. Ensure port 5000 is running.");
+      setError(err.message || "Network error connecting to Express Gateway.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="relative w-full max-w-4xl mx-auto -mt-12 z-30 px-4">
+    <div className="w-full max-w-5xl mx-auto px-4 py-6">
+      {/* Search Input Box */}
       <form
-        onSubmit={handleDispatch}
-        className="bg-stone-900/90 dark:bg-stone-950/90 backdrop-blur-md p-4 rounded-3xl border border-stone-700/60 shadow-2xl space-y-3"
+        onSubmit={handleSearch}
+        className="relative flex items-center shadow-2xl rounded-full overflow-hidden border border-emerald-900/40 bg-[#0F2420]"
       >
-        <div className="flex items-center justify-between px-2">
-          <span className="text-[11px] font-mono uppercase tracking-widest text-emerald-400 font-bold">
-            Dynamic AI Vector Search (Pinecone + Live Fallback)
-          </span>
-        </div>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Ask for any destination (e.g. 'places to visit in Mangalore' or 'Goa')..."
+          className="w-full px-6 py-4 text-sm sm:text-base outline-none bg-transparent text-white placeholder-stone-400 font-sans"
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="px-8 py-4 bg-[#0B6E4F] hover:bg-[#08523A] text-white font-bold text-sm transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+        >
+          {loading ? (
+            <span className="inline-block animate-spin">⚡</span>
+          ) : (
+            <span>Search</span>
+          )}
+        </button>
+      </form>
 
-        <div className="flex items-center gap-3">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search any destination (e.g. Places to visit in Gujrat, Karkala, Alps...)"
-            className="flex-1 bg-stone-800/80 border border-stone-700 text-stone-100 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition placeholder:text-stone-500"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-7 py-3 rounded-2xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-sm tracking-wide shadow-lg transition active:scale-95 cursor-pointer"
-          >
-            {loading ? "Searching..." : "Search"}
-          </button>
+      {/* Loading Indicator */}
+      {loading && (
+        <div className="mt-8 p-6 rounded-2xl bg-[#0F2420] border border-emerald-800/60 text-center animate-pulse shadow-lg">
+          <p className="text-emerald-400 font-medium text-sm font-mono">
+            🤖 LangChain Hybrid RAG active: Querying Pinecone, synthesizing verified web context, and formatting results...
+          </p>
         </div>
+      )}
 
-        {sourceNote && (
-          <div className="text-[11px] font-mono tracking-wider text-stone-400 px-2 pt-1">
-            RETRIEVED FROM: <span className="text-emerald-300 font-semibold">{sourceNote}</span>
+      {/* Error Message */}
+      {error && (
+        <div className="mt-6 p-4 rounded-xl bg-red-950/60 border border-red-800 text-red-300 text-sm">
+          ⚠️ {error}
+        </div>
+      )}
+
+      {/* AI Structured Guide Container */}
+      {(aiIntro || parsedDestinations.length > 0) && (
+        <div className="mt-8 p-6 sm:p-8 rounded-3xl bg-[#0F2420] border border-emerald-900/40 shadow-xl space-y-6">
+          {/* Header Banner */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-emerald-900/40">
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl">✨</span>
+              <h3 className="font-serif font-bold text-xl text-white tracking-wide">
+                JourneyBuddy AI Itinerary &amp; Guide
+              </h3>
+            </div>
+            <span className="self-start sm:self-auto text-[11px] font-mono px-3 py-1 rounded-full bg-[#08523A] text-emerald-300 border border-emerald-700/60 font-semibold">
+              LangChain RAG • Gemini 3.6 Flash
+            </span>
           </div>
-        )}
 
-        {errorMsg && (
-          <p className="mt-2 text-xs font-mono text-rose-400 px-2">{errorMsg}</p>
-        )}
+          {/* AI Intro Summary */}
+          {aiIntro && (
+            <p className="text-sm text-stone-300 leading-relaxed italic bg-black/20 p-4 rounded-2xl border border-emerald-950">
+              &ldquo;{aiIntro}&rdquo;
+            </p>
+          )}
 
-        {results.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
-            {results.map((item, idx) => (
+          {/* Structured Cards List */}
+          <div className="space-y-4">
+            {parsedDestinations.map((place, idx) => (
               <div
                 key={idx}
-                className="p-4 rounded-2xl bg-stone-800/60 border border-stone-700/60 hover:border-emerald-500/50 transition duration-200"
+                className="p-5 rounded-2xl bg-[#142E2A] border border-emerald-900/40 hover:border-emerald-600/60 transition-all duration-200 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group"
               >
-                <div className="flex items-center justify-between mb-1">
-                  <h4 className="text-sm font-bold text-white truncate max-w-[200px]">
-                    {item.title}
-                  </h4>
-                  <span className="text-[10px] font-mono font-bold text-emerald-400">
-                    Match: {Math.round((item.score || 1) * 100)}%
-                  </span>
+                <div className="flex items-start gap-4">
+                  <div className="w-9 h-9 rounded-xl bg-[#08523A] text-emerald-300 font-mono font-black flex items-center justify-center text-sm shrink-0 border border-emerald-700/50">
+                    {place.number || idx + 1}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h4 className="font-bold text-base text-white group-hover:text-emerald-300 transition-colors">
+                        {place.name}
+                      </h4>
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#0B6E4F]/40 text-emerald-300 border border-emerald-600/30">
+                        {place.category}
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-300 mt-1.5 leading-relaxed">
+                      {place.overview || "Curated destination highlights and regional travel experience."}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-stone-300 line-clamp-2 mb-2 leading-relaxed">
-                  {item.description}
-                </p>
-                <div className="flex items-center justify-between text-[11px] text-stone-400 font-mono">
-                  <span className="capitalize bg-stone-700/50 px-2 py-0.5 rounded text-stone-300">
-                    {item.category}
-                  </span>
-                  <span className="font-semibold text-stone-200">
-                    ${item.price_usd}
+
+                {/* Provenance Tag */}
+                <div className="sm:text-right shrink-0 pl-13 sm:pl-0">
+                  <span className="inline-block text-[10px] font-mono px-2.5 py-1 rounded-full bg-black/30 text-stone-400 border border-emerald-950">
+                    {place.provenance.includes("Pinecone") || place.provenance.includes("Internal")
+                      ? "🌲 Pinecone / Mongo"
+                      : "🌐 Verified Web"}
                   </span>
                 </div>
               </div>
             ))}
           </div>
-        )}
-      </form>
+        </div>
+      )}
     </div>
   );
 }
