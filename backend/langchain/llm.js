@@ -1,5 +1,6 @@
 const { ChatGoogleGenerativeAI } = require("@langchain/google-genai");
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "../.env") });
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -7,14 +8,11 @@ if (!apiKey) {
   console.warn("⚠️ Warning: GEMINI_API_KEY is not set in backend/.env");
 }
 
-// Initialize ChatGoogleGenerativeAI with the active gemini-3.6-flash model
-const llm = apiKey
-  ? new ChatGoogleGenerativeAI({
-      apiKey: apiKey,
-      model: "gemini-3.6-flash",
-      temperature: 0.2, // Low temperature to prevent hallucination and enforce factual adherence
-      maxOutputTokens: 2048,
-    })
-  : null;
+const llm = new ChatGoogleGenerativeAI({
+  model: "gemini-2.5-flash",
+  apiKey: apiKey,
+  temperature: 0.2,
+  maxOutputTokens: 1024,
+});
 
 module.exports = { llm };

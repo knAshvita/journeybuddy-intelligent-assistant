@@ -168,23 +168,42 @@ app.post("/api/destinations/search", async (req, res) => {
   }
 });
 
-// 8. Module 2.10: LangChain Hybrid RAG Orchestration Endpoint
-app.post("/api/chat/rag", async (req, res) => {
-  const { query, targetCount = 10 } = req.body;
+// 8. Module 2.10: LangChain Hybrid RAG Orchestration Endpoint (Chat & Destination-Aware)
+const { generateChatbotResponse } = require("./langchain/ragPipeline");
 
-  if (!query) {
-    return res.status(400).json({ error: "Query is required" });
+app.post("/api/chat/rag", async (req, res) => {
+  const {
+    query = "",
+    destination = "",
+    history = [],
+    travelContext = {},
+    targetCount = 10,
+  } = req.body;
+
+  if (!query && !destination) {
+    return res.status(400).json({ error: "A query or destination parameter is required." });
   }
 
   try {
-    console.log(`🤖 [Express Gateway] Routing query to LangChain RAG: "${query}"`);
-    const result = await generateTravelPlan(query, Number(targetCount) || 10);
+    console.log(`🤖 [Express Gateway] Routing to LangChain RAG -> Query: "${query}" | Dest: "${destination}"`);
+    
+    const result = await generateChatbotResponse({
+      query,
+      destination,
+      history,
+      travelContext,
+      targetCount: Number(targetCount) || 10,
+    });
 
     return res.status(200).json({
       success: true,
-      query: result.query,
+      query,
+      destination: result.destination,
       answer: result.answer,
       places: result.places,
+      bookingLink: result.bookingLink,
+      travelContext: result.travelContext,
+      sources: result.sources,
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
