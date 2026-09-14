@@ -15,6 +15,7 @@ const { MongoClient, ObjectId } = require("mongodb");
 const { Pinecone } = require("@pinecone-database/pinecone");
 const { verifyToken } = require("./middleware/authMiddleware");
 const { generateTravelPlan } = require("./langchain/ragPipeline");
+const { runTravelAgent } = require("./langchain/agent");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -215,7 +216,40 @@ app.post("/api/chat/rag", async (req, res) => {
   }
 });
 
-// Server Listener
+// -----------------------------------------------------------------------------
+// MODULE 2.12: AUTONOMOUS AGENT ENDPOINT (Plan -> Act -> Observe -> Iterate)
+// -----------------------------------------------------------------------------
+app.post("/api/agent/plan", async (req, res) => {
+  try {
+    const { query, destination, travelContext, maxIterations } = req.body;
+
+    if (!query && !destination) {
+      return res.status(400).json({
+        success: false,
+        error: "Either 'query' or 'destination' must be supplied.",
+      });
+    }
+
+    const agentResult = await runTravelAgent({
+      query: query || `Plan trip for ${destination}`,
+      destination: destination || query,
+      travelContext: travelContext || {},
+      maxIterations: maxIterations || 3,
+    });
+
+    return res.status(200).json(agentResult);
+  } catch (err) {
+    console.error("❌ Agent endpoint error:", err.message);
+    return res.status(500).json({
+      success: false,
+      error: "Autonomous travel planning failed.",
+      details: err.message,
+    });
+  }
+});
+
+// app.listen must always remain at the very end of the file
 app.listen(PORT, () => {
   console.log(`🧭 JourneyBuddy Gateway running on http://localhost:${PORT}`);
 });
+
