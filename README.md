@@ -418,6 +418,7 @@ __pycache__/
 ## JourneyBuddy is designed for containerized deployment using Google Cloud Build and Google Cloud Run.
 ## The project contains:
 
+```text 
 Source Code
      │
      ▼
@@ -433,11 +434,12 @@ Google Cloud Run
      ├── Frontend Service
      ├── Backend API Service
      └── FastAPI Service
-
+```
 
 # 🏆 Final Project Summary
 ## JourneyBuddy combines modern full-stack development, cloud infrastructure, vector databases, Retrieval-Augmented Generation, conversational AI, and agentic workflows into a unified intelligent travel planning platform.
 
+```text
 Next.js
    ↓
 User Interface
@@ -481,6 +483,7 @@ Containerization
 Google Cloud Run
    ↓
 Cloud Deployment
+```
 
 # 📄 License
 ## This project is developed as part of an applied engineering curriculum exploring modern full-stack development, vector databases, Retrieval-Augmented Generation, and agentic AI architectures.
