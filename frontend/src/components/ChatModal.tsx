@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 export interface TravelContext {
   destination?: string;
@@ -24,7 +24,13 @@ interface ChatModalProps {
   initialCategory?: string;
 }
 
-// Interactive Item Card inside Assistant Messages
+function cleanText(str: string): string {
+  return (str || "")
+    .replace(/\*\*/g, "")
+    .replace(/^[-*•#]+\s*/, "")
+    .trim();
+}
+
 function InteractiveCardItem({
   title,
   desc,
@@ -40,18 +46,48 @@ function InteractiveCardItem({
   onSelectLodge: (name: string, price: string | null) => void;
   onAskDetail: (query: string) => void;
 }) {
-  const isLodge = /lodge|residency|hotel|inn|cottage|guest house|resort/i.test(title);
-  const isFinalTotal = /final total|estimated total/i.test(title);
+  const tLower = title.toLowerCase();
+  const dLower = desc.toLowerCase();
 
-  const googleSearchUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(
-    `${title} ${destination}`
-  )}`;
+  const isLodge =
+    /lodge|residency|hotel|inn|cottage|guest house|resort|stay|homestay/i.test(tLower);
+  const isRestaurant =
+    /restaurant|cafe|diner|shack|food|eatery|bakery|bar|dining|lunch|dinner/i.test(tLower) ||
+    /dining|dishes|seafood|cuisine/i.test(dLower);
+  const isAttraction =
+    /beach|fort|temple|basadi|lake|falls|waterfall|monument|museum|statue|sanctuary|promenade|point|viewpoint|church|shrine|palace/i.test(
+      tLower
+    );
+
+  const isFinalTotal = /final total|estimated total|grand total/i.test(tLower);
+  const isBudgetCategory =
+    /accommodation|food|transport|activities|entry fees|miscellaneous/i.test(tLower);
+
+  let photoSearchQuery = "";
+  let photoButtonLabel = "";
+
+  if (isLodge) {
+    photoSearchQuery = `${cleanText(title)} ${destination} hotel room photos`;
+    photoButtonLabel = "🔍 View Lodge Photos";
+  } else if (isRestaurant) {
+    photoSearchQuery = `${cleanText(title)} ${destination} restaurant food photos`;
+    photoButtonLabel = "🍽️ View Food & Ambience";
+  } else if (isAttraction) {
+    photoSearchQuery = `${cleanText(title)} ${destination} tourist attraction photos`;
+    photoButtonLabel = "📸 View Place Photos";
+  }
+
+  const googleSearchUrl = photoSearchQuery
+    ? `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(photoSearchQuery)}`
+    : null;
 
   return (
     <div
-      className={`p-3.5 rounded-2xl transition-all shadow-sm group ${
+      className={`p-3.5 rounded-2xl transition-all shadow-sm ${
         isFinalTotal
-          ? "bg-gradient-to-r from-[#0B6E4F]/30 to-[#08523A]/50 border-2 border-emerald-500 shadow-emerald-950/40"
+          ? "bg-gradient-to-r from-[#0B6E4F]/40 to-[#08523A]/60 border-2 border-emerald-400"
+          : isBudgetCategory
+          ? "bg-[#0E201C] border border-emerald-900/40 hover:border-emerald-700/50"
           : "bg-[#0F2420] border border-emerald-900/50 hover:border-emerald-600/60"
       }`}
     >
@@ -59,66 +95,75 @@ function InteractiveCardItem({
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span
-              className={`font-bold text-xs sm:text-sm ${
-                isFinalTotal ? "text-white text-sm sm:text-base font-serif" : "text-emerald-300"
+              className={`font-semibold text-xs sm:text-sm ${
+                isFinalTotal
+                  ? "text-white text-sm sm:text-base font-bold font-serif"
+                  : "text-emerald-300"
               }`}
             >
-              {isFinalTotal ? "🏷️ " + title : title}
+              {isFinalTotal ? "🏷️ " + cleanText(title) : cleanText(title)}
             </span>
+
             {isLodge && (
               <span className="text-[9px] uppercase tracking-wider font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
                 Lodge / Stay
               </span>
             )}
+            {isRestaurant && (
+              <span className="text-[9px] uppercase tracking-wider font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                Food / Dining
+              </span>
+            )}
+            {isAttraction && (
+              <span className="text-[9px] uppercase tracking-wider font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                Attraction
+              </span>
+            )}
           </div>
+
           {desc && (
-            <p className={`text-xs mt-1 leading-relaxed ${isFinalTotal ? "text-emerald-100 font-medium" : "text-stone-300"}`}>
-              {desc}
+            <p className="text-stone-300 text-xs mt-1 leading-relaxed">
+              {cleanText(desc)}
             </p>
           )}
         </div>
 
         {price && (
           <span
-            className={`shrink-0 text-[11px] font-mono px-2.5 py-1 rounded font-bold self-start ${
+            className={`shrink-0 text-[10px] font-mono px-2 py-0.5 rounded font-semibold self-start ${
               isFinalTotal
-                ? "bg-amber-400 text-stone-950 shadow-md text-xs sm:text-sm"
+                ? "bg-amber-400 text-stone-950 font-bold text-xs"
                 : "bg-black/40 text-amber-300 border border-amber-900/40"
             }`}
           >
-            {price}
+            {cleanText(price)}
           </span>
         )}
       </div>
 
-      {/* Hide search buttons for final total summary cards */}
-      {!isFinalTotal && (
+      {(googleSearchUrl || isLodge) && !isFinalTotal && !isBudgetCategory && (
         <div className="mt-3 pt-2.5 border-t border-emerald-900/30 flex items-center justify-between gap-2 flex-wrap text-[11px]">
-          <a
-            href={googleSearchUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/30 hover:bg-black/60 text-emerald-300 hover:text-white border border-emerald-800/40 transition-all"
-          >
-            <span>🔍 View Photos on Google</span>
-            <span className="text-[10px]">↗</span>
-          </a>
+          {googleSearchUrl ? (
+            <a
+              href={googleSearchUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/30 hover:bg-black/60 text-emerald-300 hover:text-white border border-emerald-800/40 transition-all cursor-pointer"
+            >
+              <span>{photoButtonLabel}</span>
+              <span className="text-[10px]">↗</span>
+            </a>
+          ) : (
+            <div />
+          )}
 
-          {isLodge ? (
+          {isLodge && (
             <button
               type="button"
-              onClick={() => onSelectLodge(title, price)}
+              onClick={() => onSelectLodge(cleanText(title), price)}
               className="px-3 py-1 rounded-lg bg-[#0B6E4F] hover:bg-[#08523A] text-white font-semibold transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1"
             >
               <span>💰 Calculate Group Budget</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => onAskDetail(`Tell me more details and travel tips about: ${title}`)}
-              className="px-2.5 py-1 rounded-lg bg-[#142E2A] hover:bg-[#1a3c37] text-stone-300 hover:text-emerald-300 border border-emerald-800/40 transition-colors cursor-pointer"
-            >
-              💡 Learn More
             </button>
           )}
         </div>
@@ -127,8 +172,6 @@ function InteractiveCardItem({
   );
 }
 
-// Formatter mapping raw markdown to interactive cards
-// Formatter mapping raw markdown to interactive cards
 function FormattedAssistantMessage({
   content,
   destination,
@@ -148,20 +191,50 @@ function FormattedAssistantMessage({
     if (currentBullets.length === 0) return;
     elements.push(
       <div key={`${keyPrefix}-cards`} className="space-y-2.5 my-2.5">
-        {currentBullets.map((bText, bIdx) => {
-          const priceMatch = bText.match(/\((?:~?[$₹][\d,]+(?:\s*-\s*[$₹]?[\d,]+)?(?:\/[a-zA-Z]+)?)\)/);
-          const price = priceMatch ? priceMatch[0].replace(/[()]/g, "") : null;
-          const cleanText = price ? bText.replace(priceMatch![0], "").trim() : bText;
+        {currentBullets.map((rawBullet, bIdx) => {
+          if (/^[-—_\s*•]+$/.test(rawBullet.trim())) {
+            return null;
+          }
 
-          const splitTitle = cleanText.split(/:\s*(.+)/);
-          const title = (splitTitle[0] || cleanText).replace(/\*\*/g, "").trim();
-          const desc = splitTitle[1]?.trim() || "";
+          const priceMatch = rawBullet.match(
+            /\((?:~?[$₹][\d,]+(?:\s*-\s*[$₹]?[\d,]+)?(?:\/[a-zA-Z]+)?)\)/
+          );
+          const price = priceMatch ? priceMatch[0].replace(/[()]/g, "") : null;
+          const cleanLine = price && priceMatch
+  ? rawBullet.replace(priceMatch[0], "").trim()
+  : rawBullet.trim();
+          let title = "";
+          let desc = "";
+
+          const timeRangeMatch = cleanLine.match(
+            /^(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?\s*[-–—]\s*\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\s*[:–—]?\s*(.*)/i
+          );
+          const boldMatch = cleanLine.match(/^\*\*([^*]+)\*\*[:\s-]*(.*)/);
+
+          if (timeRangeMatch) {
+            title = timeRangeMatch[1].trim();
+            desc = timeRangeMatch[2].trim();
+          } else if (boldMatch) {
+            title = boldMatch[1].trim();
+            desc = boldMatch[2].trim();
+          } else {
+            const colonIdx = cleanLine.indexOf(":");
+            if (colonIdx !== -1 && !/^\d+$/.test(cleanLine.slice(0, colonIdx).trim())) {
+              title = cleanLine.slice(0, colonIdx).trim();
+              desc = cleanLine.slice(colonIdx + 1).trim();
+            } else {
+              title = cleanLine;
+              desc = "";
+            }
+          }
+
+          if (!title && !desc) return null;
 
           return (
             <InteractiveCardItem
               key={bIdx}
-              title={title}
-              desc={desc}
+              title={cleanText(title)}
+              desc={cleanText(desc)}
               price={price}
               destination={destination}
               onSelectLodge={onSelectLodge}
@@ -177,44 +250,66 @@ function FormattedAssistantMessage({
   lines.forEach((rawLine, idx) => {
     const line = rawLine.trim();
 
-    if (!line) {
+    if (!line || line === "---" || line === "***") {
       flushBullets(`gap-${idx}`);
       return;
     }
 
-    // 1. Detect divider lines like '---' or '-------'
-    const isDivider = /^[-*_]{3,}$/.test(line.replace(/\s/g, ""));
-    if (isDivider) {
-      flushBullets(`pre-hr-${idx}`);
-      elements.push(
-        <hr key={`hr-${idx}`} className="border-t border-emerald-900/40 my-3" />
-      );
+    if (/^\|?\s*[-:]+\s*\|/.test(line)) {
       return;
     }
 
-    // 2. Strict bullet matching (requires a space after * or -)
-    const isBullet = /^[*•]\s+/.test(line) || /^-\s+/.test(line);
+    if (line.startsWith("|") && line.endsWith("|")) {
+      const parts = line
+        .split("|")
+        .map((p) => cleanText(p))
+        .filter(Boolean);
 
-    // 3. Section Headers
-    const headerMatch = line.match(/^(?:###|\*\*)\s*(.*?)(?:\*\*|:)?$/);
+      if (
+        parts[0]?.toLowerCase() === "category" ||
+        parts[0]?.toLowerCase() === "expense category"
+      ) {
+        return;
+      }
+
+      if (parts.length >= 2) {
+        const catName = parts[0];
+        const costVal = parts[parts.length - 1];
+        const detail =
+          parts.length > 2 ? parts.slice(1, parts.length - 1).join(" - ") : "";
+
+        currentBullets.push(`**${catName}**: ${detail} (${costVal})`);
+        return;
+      }
+    }
+
+    const headerMatch = line.match(/^(?:###|####|\*\*)\s*(.*?)(?:\*\*|:)?$/);
+    const isBullet =
+      line.startsWith("*") || line.startsWith("-") || line.startsWith("•");
 
     if (isBullet) {
-      currentBullets.push(line.replace(/^[*•-]\s*/, ""));
+      const strippedBullet = line.replace(/^[*•-]\s*/, "");
+      if (strippedBullet && strippedBullet !== "-") {
+        currentBullets.push(strippedBullet);
+      }
     } else if (headerMatch && !line.includes(": ")) {
       flushBullets(`pre-hdr-${idx}`);
       elements.push(
         <div key={`hdr-${idx}`} className="mt-4 mb-2 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <h4 className="font-bold text-xs sm:text-sm uppercase tracking-wider text-emerald-300 font-mono">
-            {headerMatch[1].replace(/\*\*/g, "").trim()}
+          <h4 className="font-semibold text-xs sm:text-sm uppercase tracking-wider text-emerald-300 font-mono">
+            {cleanText(headerMatch[1])}
           </h4>
         </div>
       );
     } else {
       flushBullets(`pre-p-${idx}`);
       elements.push(
-        <p key={`p-${idx}`} className="text-xs sm:text-sm text-stone-200 leading-relaxed my-1.5">
-          {line.replace(/\*\*/g, "")}
+        <p
+          key={`p-${idx}`}
+          className="text-xs sm:text-sm text-stone-200 leading-relaxed my-1.5"
+        >
+          {cleanText(line)}
         </p>
       );
     }
@@ -237,7 +332,6 @@ export default function ChatModal({
     destination: initialDestination,
   });
 
-  // Dynamic context-based Quick Ask chips
   const [currentChips, setCurrentChips] = useState<string[]>([
     "⭐ What to do here?",
     "🏨 Affordable Lodges",
@@ -253,9 +347,9 @@ export default function ChatModal({
       setTravelContext({ destination: dest });
 
       const greeting = dest
-        ? `Hello! I am your AI assistant for **${dest}**${
+        ? `Hello! I am your AI assistant for ${dest}${
             initialCategory ? ` (${initialCategory})` : ""
-          }.\n\nClick any card below to view photos, learn more, or calculate a group budget:`
+          }.\n\nClick any card below to view photos or calculate a group budget:`
         : "Hello! I am your JourneyBuddy AI travel assistant. Where would you like to explore?";
 
       setMessages([{ role: "assistant", content: greeting }]);
@@ -274,24 +368,37 @@ export default function ChatModal({
 
   if (!isOpen) return null;
 
-  // Dynamic follow-up chips based on topic
   const updateDynamicChips = (text: string) => {
     const q = text.toLowerCase();
-    if (q.includes("lodge") || q.includes("stay") || q.includes("hotel") || q.includes("accommodation")) {
+    if (
+      q.includes("lodge") ||
+      q.includes("stay") ||
+      q.includes("hotel") ||
+      q.includes("accommodation")
+    ) {
       setCurrentChips([
         "👥 2 People",
         "👥 4 People",
         "👥 6 People",
         "🚗 How to reach by Car?",
       ]);
-    } else if (q.includes("budget") || q.includes("cost") || q.includes("₹") || q.includes("people")) {
+    } else if (
+      q.includes("budget") ||
+      q.includes("cost") ||
+      q.includes("₹") ||
+      q.includes("people")
+    ) {
       setCurrentChips([
         "🚌 Book RedBus Tickets",
         "🍽️ Food & Dining Cost",
         "🗓️ 2-Day Itinerary Plan",
         "🏨 View Other Stays",
       ]);
-    } else if (q.includes("transport") || q.includes("bus") || q.includes("reach")) {
+    } else if (
+      q.includes("transport") ||
+      q.includes("bus") ||
+      q.includes("reach")
+    ) {
       setCurrentChips([
         "🚌 Open RedBus Search",
         "🏨 Lodges Near Bus Stand",
@@ -319,7 +426,9 @@ export default function ChatModal({
     setLoading(true);
 
     const updatedContext = { ...travelContext };
-    const numMatch = textToSend.match(/(\d+)\s*(people|members|persons|travelers|pax)?/i);
+    const numMatch = textToSend.match(
+      /(\d+)\s*(people|members|persons|travelers|pax)?/i
+    );
     if (numMatch && !textToSend.includes("₹")) {
       updatedContext.members = parseInt(numMatch[1], 10);
     }
@@ -339,10 +448,17 @@ export default function ChatModal({
 
     updateDynamicChips(textToSend);
 
-    // If a lodge was previously selected and user inputs group size, form a specific query
     let queryPayload = textToSend;
-    if (updatedContext.selectedLodge && numMatch && !textToSend.includes("stay at")) {
-      queryPayload = `We are ${updatedContext.members || numMatch[1]} people staying at ${updatedContext.selectedLodge} for 2 days. Provide an itemized estimated budget breakdown (Stay, Food, Local Transport, Activities) and total in INR (₹).`;
+    if (
+      updatedContext.selectedLodge &&
+      numMatch &&
+      !textToSend.includes("stay at")
+    ) {
+      queryPayload = `We are ${
+        updatedContext.members || numMatch[1]
+      } people staying at ${
+        updatedContext.selectedLodge
+      } for 2 days. Provide an itemized estimated budget breakdown (Stay, Food, Local Transport, Activities) and total in INR (₹).`;
     }
 
     try {
@@ -390,22 +506,22 @@ export default function ChatModal({
     }
   };
 
-  // When user clicks "Calculate Group Budget" on a lodge card:
-  // The AI asks how many people are traveling and offers number selection chips
-  const handleSelectLodge = (lodgeName: string, priceEstimate: string | null) => {
+  const handleSelectLodge = (
+    lodgeName: string,
+    priceEstimate: string | null
+  ) => {
     setTravelContext((prev) => ({ ...prev, selectedLodge: lodgeName }));
 
     setMessages((prev) => [
       ...prev,
       {
         role: "assistant",
-        content: `Great choice! For **${lodgeName}** ${
+        content: `Great choice! For ${lodgeName} ${
           priceEstimate ? `(${priceEstimate})` : ""
-        }:\n\n**How many people are planning to travel?**\nClick a number below or type your group size:`,
+        }:\n\nHow many people are planning to travel?\nClick a number below or type your group size:`,
       },
     ]);
 
-    // Provide number selection chips
     setCurrentChips([
       "👥 2 People",
       "👥 4 People",
@@ -419,7 +535,6 @@ export default function ChatModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-3xl h-[88vh] max-h-[760px] bg-[#0A1815] border border-emerald-900/60 rounded-3xl shadow-2xl flex flex-col overflow-hidden text-stone-200 font-sans">
-        
         {/* Header */}
         <div className="px-6 py-4 bg-[#0F2420] border-b border-emerald-900/40 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -450,7 +565,9 @@ export default function ChatModal({
           {messages.map((m, idx) => (
             <div
               key={idx}
-              className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"}`}
+              className={`flex flex-col ${
+                m.role === "user" ? "items-end" : "items-start"
+              }`}
             >
               <div
                 className={`max-w-[92%] p-4 rounded-2xl shadow-md ${
@@ -460,7 +577,7 @@ export default function ChatModal({
                 }`}
               >
                 {m.role === "user" ? (
-                  m.content
+                  cleanText(m.content)
                 ) : (
                   <FormattedAssistantMessage
                     content={m.content}
@@ -470,7 +587,7 @@ export default function ChatModal({
                   />
                 )}
 
-                {/* Optional RedBus Booking Redirect */}
+                {/* RedBus Booking Redirect */}
                 {m.bookingLink && (
                   <div className="mt-4 pt-3 border-t border-emerald-800/40">
                     <p className="text-[11px] text-emerald-300 mb-2 font-mono">
@@ -480,7 +597,7 @@ export default function ChatModal({
                       href={m.bookingLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#D84E55] hover:bg-[#b83d43] text-white font-bold text-xs tracking-wide transition-all shadow-md active:scale-95"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#D84E55] hover:bg-[#b83d43] text-white font-bold text-xs tracking-wide transition-all shadow-md active:scale-95 cursor-pointer"
                     >
                       <span>🚌 Book on RedBus (Official)</span>
                       <span>↗</span>
@@ -506,10 +623,10 @@ export default function ChatModal({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Dynamic Context-Aware Quick Ask Chips */}
+        {/* Dynamic Quick Ask Chips */}
         <div className="px-5 py-2.5 bg-[#0F2420]/80 border-t border-emerald-900/30 flex items-center gap-2 overflow-x-auto text-[11px] font-mono no-scrollbar">
           <span className="text-stone-400 shrink-0">Quick Options:</span>
-          
+
           {currentChips.map((chip, cIdx) => (
             <button
               key={cIdx}

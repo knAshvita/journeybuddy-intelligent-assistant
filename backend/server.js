@@ -15,7 +15,7 @@ const { MongoClient, ObjectId } = require("mongodb");
 const { Pinecone } = require("@pinecone-database/pinecone");
 const { verifyToken } = require("./middleware/authMiddleware");
 const { generateTravelPlan } = require("./langchain/ragPipeline");
-const { runTravelAgent } = require("./langchain/agent");
+const { runTravelAgent } = require("./agents/journeyBuddyAgent");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -247,6 +247,24 @@ app.post("/api/agent/plan", async (req, res) => {
     });
   }
 });
+
+// MODULE 2.12: AUTONOMOUS AGENT ENDPOINT
+app.post("/api/agent/plan", async (req, res) => {
+  try {
+    const { query, destination, travelContext, maxIterations } = req.body;
+    const agentResult = await runTravelAgent({
+      query: query || `Plan trip for ${destination}`,
+      destination: destination || query,
+      travelContext: travelContext || {},
+      maxIterations: maxIterations || 5,
+    });
+    return res.status(200).json(agentResult);
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
 
 // app.listen must always remain at the very end of the file
 app.listen(PORT, () => {
